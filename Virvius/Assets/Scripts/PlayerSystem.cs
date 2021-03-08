@@ -14,13 +14,13 @@ public class PlayerSystem : MonoBehaviour
     private RaycastHit hit;
     private enum RotationAxes { XY, X, Y };
     private RotationAxes axis = RotationAxes.XY;
-    private float moveSpeed = 10;
-    private float jumpSpeed = 20f;
-    private float antiBumpFactor = .75f;
-    private float gravityPull = 50;
+    public float moveSpeed = 10;
+    public float jumpSpeed = 20f;
+    public float antiBumpFactor = .75f;
+    public  float gravityPull = 50;
     private float gravity;
-    private float inputX;
-    private float inputY;
+    public float inputX;
+    public float inputY;
     private float health = 100;
     private int antiJumpFactor = 1;
     private int jumpTimer;
@@ -46,10 +46,13 @@ public class PlayerSystem : MonoBehaviour
     [Header("Player Slides on Tag (Slide)")]
     public bool slideOnTag = false;
     [Header("Player Moving attributes")]
-    public bool isGrounded = true;
+    public bool isGrounded = false;
     public bool isJumping = true;
     public bool isFalling = false;
     public bool isSliding = false;
+    public bool isMoving = false;
+    [Header("Player Sounds")]
+    public AudioClip jumpSfx;
 
     private void Awake()
     {
@@ -81,7 +84,7 @@ public class PlayerSystem : MonoBehaviour
         // player input of left stick or Arrow Keys
         inputX = inputPlayer.GetAxis("LSH");
         inputY = inputPlayer.GetAxis("LSV");
-
+       
         // if no player input and angle limit true, slow down input factor [For player air control when falling]
         float inputModifyFactor = (inputX != 0.0f && inputY != 0.0f && limitDiagonalSpeed) ? .7071f : 1.0f;
 
@@ -94,6 +97,8 @@ public class PlayerSystem : MonoBehaviour
             {
                 if (Vector3.Angle(hit.normal, Vector3.up) > slideAngle)
                     isSliding = true;
+                else if (Vector3.Angle(hit.normal, Vector3.up) <= slideAngle)
+                    isMoving = true;
             }
             // when player collision contact point collides with slide angle, sliding = true
             else
@@ -101,6 +106,8 @@ public class PlayerSystem : MonoBehaviour
                 Physics.Raycast(contactPoint + Vector3.up, -Vector3.up, out hit);
                 if (Vector3.Angle(hit.normal, Vector3.up) > slideAngle)
                     isSliding = true;
+                else if (Vector3.Angle(hit.normal, Vector3.up) <= slideAngle)
+                    isMoving = true;
             }
             // start sliding the player based on angle or tag in direction of the angle
             if ((isSliding && slideOnAngle) || (isSliding && slideOnTag && hit.collider.tag == "Slide"))
@@ -114,6 +121,11 @@ public class PlayerSystem : MonoBehaviour
             else
             {
                 moveDirection = new Vector3(inputX, -antiBumpFactor, inputY);
+                if (moveDirection.x != 0 || moveDirection.z != 0)
+                    isMoving = true;
+                else if (moveDirection.x != 0 && moveDirection.z != 0)
+                    isMoving = true;
+                else isMoving = false;
                 moveDirection = transform.TransformDirection(moveDirection) * moveSpeed;
             }
             // [PLAYER FALLING] -------------------------------------------------------------------------------------
@@ -139,6 +151,7 @@ public class PlayerSystem : MonoBehaviour
                 moveDirection.y = jumpSpeed;
                 // reset jump timer so plasyer doesnt continue to jump
                 jumpTimer = 0;
+                AudioSystem.PlayAudioSource(jumpSfx, 0.7f, 1);
             }
         }
         else

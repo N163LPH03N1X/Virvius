@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f1ca63a91b17724bbd99c8fa67e0180, type: 3}
+  m_Name: Default Material Palette
+  m_EditorClassIdentifier: 
+  array:
+  - {fileID: 2100000, guid: c22777d6e868e4f2fb421913386b154e, type: 2}
+  - {fileID: 2100000, guid: 90fbf9ab4dc581b42bb577eb562a0211, type: 2}
+  - {fileID: 2100000, guid: a656699882d6c114199c8b0715cd0190, type: 2}
+  - {fileID: 2100000, guid: 90fbf9ab4dc581b42bb577eb562a0211, type: 2}
+  - {fileID: 2100000, guid: 4899c28d89391074d9f6a8ffdfb0fe0f, type: 2}
+  - {fileID: 2100000, guid: 7714cdd64ac52494e8d2a53b7b15f873, type: 2}
+  - {fileID: 2100000, guid: 429b621d9beade54194d954e6c088ea3, type: 2}
+  - {fileID: 2100000, guid: 4a827e7fdc962624f9e80a01851803e6, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
