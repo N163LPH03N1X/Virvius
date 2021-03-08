@@ -1,16 +1,20 @@
 ﻿using UnityEngine;
 using System.Collections;
 public class AudioSystem : MonoBehaviour
-{
-    OptSystem optSystem = new OptSystem();
+{ 
     public static AudioSystem audioSystem;
     public AudioSource[] altAudioSources;
     public AudioSource M_audioSrc;
     public Transform soundFxPool;
     public GameObject soundPrefab;
+    private static WaitForEndOfFrame waitForEndOfFrame = new WaitForEndOfFrame();
     IEnumerator sourceRoutine = null;
     //public int amountToPool;
     public bool expandPool = true;
+    float deltaTimer = 0;
+    bool isFading = true;
+    bool fadeVolIn = true;
+    float fadeSpeed = 1;
     public void Awake()
     {
         audioSystem = this;
@@ -23,6 +27,14 @@ public class AudioSystem : MonoBehaviour
         audioSystem.M_audioSrc.volume = volume;
         audioSystem.M_audioSrc.loop = loop;
         audioSystem.M_audioSrc.Play();
+    }
+    public void Start()
+    {
+        SetVolumeFade(fadeVolIn);
+    }
+    private void Update()
+    {
+        FadeAudio(M_audioSrc, fadeVolIn, 2f);
     }
     public static void PlayAltAudioSource(int sourceNum, AudioClip clip, float pitch, float volume, bool active)
     {
@@ -78,10 +90,10 @@ public class AudioSystem : MonoBehaviour
         else
             return null;
     }
-    public static void FadeMusic(bool fadeIn)
-    {
-        FadeSource(fadeIn, audioSystem.M_audioSrc);
-    }
+    //public static void FadeMusic(bool fadeIn)
+    //{
+    //    FadeSource(fadeIn, audioSystem.M_audioSrc);
+    //}
     public static void MusicPlayStop(bool play)
     {
         if(play) audioSystem.M_audioSrc.Play();
@@ -97,26 +109,63 @@ public class AudioSystem : MonoBehaviour
     {
         PlayAudioSource(clip, 1, 1);
     }
-    public static void FadeSource(bool fadeIn, AudioSource audioSrc)
+    //public static void FadeSource(bool fadeIn, AudioSource audioSrc)
+    //{
+    //    if (audioSystem.sourceRoutine != null)
+    //        audioSystem.StopCoroutine(audioSystem.sourceRoutine);
+    //    audioSystem.sourceRoutine = FadeAudioSource(fadeIn, audioSrc);
+    //    audioSystem.StartCoroutine(audioSystem.sourceRoutine);
+    //}
+    public void SetVolumeFade(bool fadeIn)
     {
-        if (audioSystem.sourceRoutine != null)
-            audioSystem.StopCoroutine(audioSystem.sourceRoutine);
-        audioSystem.sourceRoutine = FadeAudioSource(fadeIn, audioSrc);
-        audioSystem.StartCoroutine(audioSystem.sourceRoutine);
+        deltaTimer = fadeIn ? 0 : 1;
     }
-    static IEnumerator FadeAudioSource(bool fadeIn, AudioSource audioSrc)
+    public void FadeAudio(AudioSource audio, bool fadeIn, float time)
     {
-        float audioMax = audioSrc.volume;
-        float inFactor = fadeIn ? 0 : audioMax;
-        float outFactor = fadeIn ? audioMax : 0;
-        audioSrc.volume = inFactor;
-        for (float f = 0; f < 1; f += 0.01f)
+
+        float speed = 1.0f / time;
+
+        if (isFading)
         {
-            audioSrc.volume = Mathf.Lerp(inFactor, outFactor, f);
-            if (f > 0.99)
-                audioSrc.volume = outFactor;
-            yield return audioSystem.optSystem.EndOfFrame;
+            if (fadeIn)
+            {
+                if (deltaTimer < 1)
+                    deltaTimer += Time.deltaTime * speed;
+                else if (deltaTimer > 1)
+                {
+                    deltaTimer = 1;
+                    isFading = false;
+                }
+                audio.volume = deltaTimer;
+            }
+            else
+            {
+                if (deltaTimer > 0)
+                    deltaTimer -= Time.deltaTime * speed;
+                else if (deltaTimer < 0)
+                {
+                    deltaTimer = 0;
+                    isFading = false;
+                }
+                audio.volume = deltaTimer;
+            }
         }
-        yield break;
     }
+
+
+    //static IEnumerator FadeAudioSource(bool fadeIn, AudioSource audioSrc)
+    //{
+    //    float audioMax = audioSrc.volume;
+    //    float inFactor = fadeIn ? 0 : audioMax;
+    //    float outFactor = fadeIn ? audioMax : 0;
+    //    audioSrc.volume = inFactor;
+    //    for (float f = 0; f < 1; f += 0.01f)
+    //    {
+    //        audioSrc.volume = Mathf.Lerp(inFactor, outFactor, f);
+    //        if (f > 0.99)
+    //            audioSrc.volume = outFactor;
+    //        yield return waitForEndOfFrame;
+    //    }
+    //    yield break;
+    //}
 }

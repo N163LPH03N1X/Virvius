@@ -1,11 +1,12 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Rewired;
 
 public class PlayerSystem : MonoBehaviour
 {
 
-    private OptSystem optSystem = new OptSystem();
+    private Player inputPlayer;
     private Transform head;
     private CharacterController controller;
     private Vector3 moveDirection = Vector3.zero;
@@ -50,8 +51,14 @@ public class PlayerSystem : MonoBehaviour
     public bool isFalling = false;
     public bool isSliding = false;
 
+    private void Awake()
+    {
+      
+    }
     private void Start()
     {
+        // get the player input system from rewired
+        inputPlayer = ReInput.players.GetPlayer(0);
         // grab the head gameObject [for look rotation]
         head = transform.GetChild(0);
         // grab character controller component
@@ -72,8 +79,8 @@ public class PlayerSystem : MonoBehaviour
     {
       
         // player input of left stick or Arrow Keys
-        inputX = optSystem.Input.GetAxis("LSH");
-        inputY = optSystem.Input.GetAxis("LSV");
+        inputX = inputPlayer.GetAxis("LSH");
+        inputY = inputPlayer.GetAxis("LSV");
 
         // if no player input and angle limit true, slow down input factor [For player air control when falling]
         float inputModifyFactor = (inputX != 0.0f && inputY != 0.0f && limitDiagonalSpeed) ? .7071f : 1.0f;
@@ -119,7 +126,7 @@ public class PlayerSystem : MonoBehaviour
                     FallingDamageAlert(fallStartLevel - transform.position.y);
             }
             // [PLAYER JUMPING] -------------------------------------------------------------------------------------
-            if (!optSystem.Input.GetButton("A") && !isSliding)
+            if (!inputPlayer.GetButton("A") && !isSliding)
             {
                 // add index to timer value to increase over anti Jump Factor
                 jumpTimer++;
@@ -179,18 +186,18 @@ public class PlayerSystem : MonoBehaviour
     }
     private void XLook(float smoothing)
     { // rotation input times smoothing & sensitivity
-        lookRotation[0] = optSystem.Input.GetAxis("RSH") * smoothing * sensitivity;
+        lookRotation[0] = inputPlayer.GetAxis("RSH") * smoothing * sensitivity;
         // rotate only player transform
         transform.Rotate(0, lookRotation[0], 0);
     }
     private void YLook(float smoothing)
     {
         // rotation input times smoothing, sensitivity and inversion
-        lookRotation[1] += optSystem.Input.GetAxis("RSV") * smoothing * sensitivity * (invertY ? -1 : 1);
+        lookRotation[1] += inputPlayer.GetAxis("RSV") * smoothing * sensitivity * (invertY ? -1 : 1);
         // clamp rotation of the Y between 55/-55
         lookRotation[1] = Mathf.Clamp(lookRotation[1], -ClampY, ClampY);
         // rotate the head up or down
-        head.localEulerAngles = optSystem.Vector3(-lookRotation[1], 0, 0);
+        head.localEulerAngles = new Vector3(-lookRotation[1], 0, 0);
     }
     // Player Collision ========================
     public void Damage(int amount)
@@ -215,5 +222,17 @@ public class PlayerSystem : MonoBehaviour
             // play landing sound
         }
         contactPoint = hit.point;
+    }
+    public void ClearOutRenderTexture(RenderTexture renderTexture)
+    {
+        RenderTexture rt = RenderTexture.active;
+        RenderTexture.active = renderTexture;
+        GL.Clear(true, true, UnityEngine.Color.clear);
+        RenderTexture.active = rt;
+    }
+    public void GameMouseActive(bool active, CursorLockMode lockMode)
+    {
+        Cursor.lockState = lockMode;
+        Cursor.visible = active;
     }
 }
