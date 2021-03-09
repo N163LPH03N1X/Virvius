@@ -2,10 +2,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Rewired;
+using UnityEngine.UI;
 
 public class PlayerSystem : MonoBehaviour
 {
-
+  
     private Player inputPlayer;
     private Transform head;
     private CharacterController controller;
@@ -13,13 +14,17 @@ public class PlayerSystem : MonoBehaviour
     private Vector3 contactPoint;
     private RaycastHit hit;
     private enum RotationAxes { XY, X, Y };
+    public enum WeaponType { ShotGun };
     private RotationAxes axis = RotationAxes.XY;
+    private WeaponType wType;
     public float moveSpeed = 10;
     public float jumpSpeed = 20f;
-    public float antiBumpFactor = .75f;
+    private float antiBumpFactor = .75f;
     public  float gravityPull = 50;
     private float gravity;
+    [HideInInspector]
     public float inputX;
+    [HideInInspector]
     public float inputY;
     private float health = 100;
     private int antiJumpFactor = 1;
@@ -32,7 +37,30 @@ public class PlayerSystem : MonoBehaviour
     private bool invertY = false;
     private float ClampY = 55f;
     private float[] lookRotation = new float[2];
-
+    private float nextFire;
+    private float fireRate;
+    private float ammo;
+    private float gunflashTime = 0.05f;
+    private float gunflashTimer;
+    private bool gunFlash = false;
+    private float gunLerpTime;
+    private bool lerpAhead = false;
+    public  Transform bulletPool;
+    private GameObject bulletPrefab;
+    private GameObject weapon;
+    [SerializeField]
+    private Image ammoUI;
+    [SerializeField]
+    private Image armorUI;
+    [SerializeField]
+    private Text ammoText;
+    private AudioClip weaponSound;
+    [HideInInspector]
+    public Vector3 recoilPosition;
+    [HideInInspector]
+    public Quaternion recoilRotation;
+    public  Transform[] weaponEmitter;
+    private MeshRenderer weaponMuzzle;
     [Header("Player can move in air")]
     public bool airControl = false;
     [Header("Limit slope speed")]
@@ -51,8 +79,29 @@ public class PlayerSystem : MonoBehaviour
     public bool isFalling = false;
     public bool isSliding = false;
     public bool isMoving = false;
+    public bool isShooting = false;
+    public bool isRecoiling = false;
     [Header("Player Sounds")]
     public AudioClip jumpSfx;
+    [Header("Player Tilt")]
+    float tiltAngle;
+    public float angle = 4f;
+    public float tiltSpeed = 0f;
+    [Header("PlayerWeapons")]
+    public Transform[] weaponSEmitters = new Transform[1];
+    public float[] weaponFireRates = new float[1];
+    public GameObject[] weapons = new GameObject[1];
+    public MeshRenderer[] weaponMuzzles = new MeshRenderer[1];
+    public ParticleSystem weaponSmoke;
+    public AudioClip[] weaponSounds = new AudioClip[1];
+    public Vector3[] weaponRecoilPositions = new Vector3[1];
+    public Quaternion[] weaponRecoilRotations = new Quaternion[1];
+    public bool[] weaponEquipped = new bool[1];
+    public bool[] weaponObtained = new bool[1];
+    public int[] weaponAmmo = new int[1];
+    public Transform[] bulletPools = new Transform[1];
+    public GameObject[] bulletPrefabs = new GameObject[1];
+    public List<int> emitterW0List = new List<int> { 0, 1, 2, 3, 4, 5, 6 };
 
     private void Awake()
     {
@@ -60,6 +109,7 @@ public class PlayerSystem : MonoBehaviour
     }
     private void Start()
     {
+      
         // get the player input system from rewired
         inputPlayer = ReInput.players.GetPlayer(0);
         // grab the head gameObject [for look rotation]
@@ -70,13 +120,61 @@ public class PlayerSystem : MonoBehaviour
         jumpTimer = antiJumpFactor;
         // set the gravity
         gravity = gravityPull;
+
+        gunflashTimer = gunflashTime;
+        WeaponSetup(WeaponType.ShotGun);
     }
     private void Update()
     {
         Move();
         Look();
+        GunFlash();
+        ShootWeapon();
+        RecoilWeapon();
     }
+    private void RecoilWeapon()
+    {
+        if (!isRecoiling)
+            return;
+        gunLerpTime += Time.deltaTime;
+        float perc = gunLerpTime / fireRate * 2;
+        if (gunLerpTime >= fireRate * 2)
+            gunLerpTime = fireRate * 2;
+        Vector3 OrgPos = new Vector3(0, -3f, 2.5f);
+        Vector3 lerpPosition = !lerpAhead ? recoilPosition : OrgPos;
+       
+        weapon.transform.localPosition = Vector3.Lerp(weapon.transform.localPosition, lerpPosition, perc);
+        if (weapon.transform.localPosition == recoilPosition && !lerpAhead)
+        {
+            gunLerpTime = 0;
+            lerpAhead = true;
+        }
+        else if (weapon.transform.localPosition == OrgPos && lerpAhead)
+        {
+            if (!isShooting)
+            {
+                isRecoiling = false;
+            }
+            gunLerpTime = 0;
+            lerpAhead = false;
+        }
 
+    }
+    private void GunFlash()
+    {
+        if (!gunFlash) return;
+        weaponMuzzle.enabled = true;
+        gunflashTimer -= Time.deltaTime;
+        gunflashTimer = Mathf.Clamp(gunflashTimer, 0.0f, 0.05f);
+        if (gunflashTimer == 0.0f) 
+        {
+            weaponMuzzle.transform.parent.Rotate(0, 0, 30);
+            weaponMuzzle.enabled = false;
+            gunFlash = false;
+            gunflashTimer = gunflashTime;
+        }
+
+    }
     // Player Movement =========================
     private void Move()
     {
@@ -84,7 +182,7 @@ public class PlayerSystem : MonoBehaviour
         // player input of left stick or Arrow Keys
         inputX = inputPlayer.GetAxis("LSH");
         inputY = inputPlayer.GetAxis("LSV");
-       
+      
         // if no player input and angle limit true, slow down input factor [For player air control when falling]
         float inputModifyFactor = (inputX != 0.0f && inputY != 0.0f && limitDiagonalSpeed) ? .7071f : 1.0f;
 
@@ -143,7 +241,7 @@ public class PlayerSystem : MonoBehaviour
                 // add index to timer value to increase over anti Jump Factor
                 jumpTimer++;
             }
-            else if (jumpTimer >= antiJumpFactor)
+            else if (inputPlayer.GetButtonDown("A") && jumpTimer >= antiJumpFactor)
             {
                 // player is now jumping
                 isJumping = true;
@@ -153,6 +251,12 @@ public class PlayerSystem : MonoBehaviour
                 jumpTimer = 0;
                 AudioSystem.PlayAudioSource(jumpSfx, 0.7f, 1);
             }
+            if (inputX > 0.2f) tiltAngle = -angle;
+            else if (inputX < -0.2f) tiltAngle = angle;
+            else tiltAngle = 0;
+            Vector3 headRot = new Vector3(head.localRotation.x, 0, tiltAngle);
+            Quaternion rot = Quaternion.Euler(headRot);
+            head.localRotation = Quaternion.RotateTowards(head.localRotation, rot, Time.deltaTime * (tiltSpeed * 10));
         }
         else
         {
@@ -210,7 +314,7 @@ public class PlayerSystem : MonoBehaviour
         // clamp rotation of the Y between 55/-55
         lookRotation[1] = Mathf.Clamp(lookRotation[1], -ClampY, ClampY);
         // rotate the head up or down
-        head.localEulerAngles = new Vector3(-lookRotation[1], 0, 0);
+        head.localEulerAngles = new Vector3(-lookRotation[1], 0, head.localEulerAngles.z);
     }
     // Player Collision ========================
     public void Damage(int amount)
@@ -247,5 +351,114 @@ public class PlayerSystem : MonoBehaviour
     {
         Cursor.lockState = lockMode;
         Cursor.visible = active;
+    }
+    public void WeaponSetup(WeaponType type)
+    {
+        int weaponIndex = 0;
+        switch (type)
+        {
+            case WeaponType.ShotGun: weaponIndex = 0; break;
+        }
+        fireRate = weaponFireRates[weaponIndex];
+        for (int w = 0; w < weapons.Length; w++)
+        {
+            if(w == weaponIndex) weapons[w].SetActive(true);
+            else weapons[w].SetActive(false);
+        }
+        for (int w = 0; w < weaponMuzzles.Length; w++)
+            weaponMuzzles[w].enabled = false;
+        if (weaponSmoke.isPlaying)
+            weaponSmoke.Stop();
+        weapon = weapons[weaponIndex];
+        weaponMuzzle = weaponMuzzles[weaponIndex];
+        weaponSound = weaponSounds[weaponIndex];
+        recoilPosition = weaponRecoilPositions[weaponIndex];
+        recoilRotation = weaponRecoilRotations[weaponIndex];
+        ammo = weaponAmmo[weaponIndex];
+        weaponEmitter = weaponSEmitters;
+        bulletPrefab = bulletPrefabs[weaponIndex];
+        bulletPool = bulletPools[weaponIndex];
+        for (int w = 0; w < weaponEquipped.Length; w++)
+        {
+            if (w == weaponIndex) weaponEquipped[weaponIndex] = true;
+            else weaponEquipped[weaponIndex] = false;
+        }
+        wType = type;
+    }
+
+    public void ShootWeapon()
+    {
+        if (inputPlayer.GetButton("RT") && Time.time > nextFire)
+        {
+            isRecoiling = true;
+            isShooting = true;
+            FireWeaponType(wType);
+            AudioSystem.PlayAudioSource(weaponSound, 1, 1);
+            gunFlash = true;
+            nextFire = Time.time + fireRate;
+        }
+        else if (inputPlayer.GetButtonUp("RT"))
+            isShooting = false;
+    }
+    private void FireWeaponType(WeaponType type)
+    {
+     
+        switch (type)
+        {
+            case WeaponType.ShotGun:
+                {
+                    for (int e = 0; e < 5; e++)
+                    {
+                        int rnd = Random.Range(0, 7);
+                        if (emitterW0List.Contains(rnd))
+                            emitterW0List.Remove(rnd);
+                        else
+                        {
+                            rnd = emitterW0List[Random.Range(0, emitterW0List.Count)];
+                            emitterW0List.Remove(rnd);
+                        }
+                        SetupBullet(weaponEmitter[rnd], 400);
+                    }
+                    emitterW0List.Clear();
+                    for (int l = 0; l < 7; l++)
+                        emitterW0List.Add(l);
+                    weaponSmoke.transform.localPosition = weaponEmitter[0].localPosition;
+                    weaponSmoke.Play();
+                    break;
+                }
+        }
+
+
+    
+    }
+    private void SetupBullet(Transform emitter, float bulletForce)
+    {
+        GameObject bullet = AccessWeaponBullet();
+        BulletSystem bulletSystem = bullet.GetComponent<BulletSystem>();
+        bullet.SetActive(true);
+        bullet.transform.position = emitter.position;
+        bullet.transform.rotation = emitter.rotation;
+        bulletSystem.SetupBullet(bulletForce, 5);
+      
+     
+    }
+    public GameObject AccessWeaponBullet()
+    {
+        for (int b = 0; b < bulletPool.childCount; b++)
+        {
+            if (!bulletPool.GetChild(b).gameObject.activeInHierarchy)
+                return bulletPool.GetChild(b).gameObject;
+        }
+        if (GameSystem.expandBulletPool)
+        {
+            GameObject newBullet = Instantiate(bulletPrefab, bulletPool);
+            return newBullet;
+        }
+        else
+            return null;
+    }
+    private float Map(float value, float inMin, float inMax, float outMin, float outMax)
+    {
+        return (value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
     }
 }
