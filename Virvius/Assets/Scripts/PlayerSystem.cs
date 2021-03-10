@@ -12,7 +12,7 @@ public class PlayerSystem : MonoBehaviour
     private CharacterController controller;
     private Vector3 moveDirection = Vector3.zero;
     private Vector3 contactPoint;
-    private RaycastHit hit;
+    private RaycastHit playerhit;
     private enum RotationAxes { XY, X, Y };
     public enum WeaponType { ShotGun };
     private RotationAxes axis = RotationAxes.XY;
@@ -37,15 +37,16 @@ public class PlayerSystem : MonoBehaviour
     private bool invertY = false;
     private float ClampY = 55f;
     private float[] lookRotation = new float[2];
-    private float nextFire;
-    private float fireRate;
     private float ammo;
+    public float[] returnRate = new float[2];
+    public float[] blastBackRate = new float[2];
+    private int reloadCounter = 0;
     private float gunflashTime = 0.05f;
     private float gunflashTimer;
     private bool gunFlash = false;
-    private float gunLerpTime;
-    private bool lerpAhead = false;
-    public  Transform bulletPool;
+    private bool[] lerpAhead = new bool[2] { false, false };
+    private bool[] lerpFinished = new bool[2] { false, false };
+    private Transform bulletPool;
     private GameObject bulletPrefab;
     private GameObject weapon;
     [SerializeField]
@@ -53,12 +54,30 @@ public class PlayerSystem : MonoBehaviour
     [SerializeField]
     private Image armorUI;
     [SerializeField]
+    private Image flashUI;
+    [SerializeField]
+    public Sprite[] flashSprites = new Sprite[2];   
+    [SerializeField]
+    private Image[] environmentUI = new Image[3];
+    [SerializeField]
     private Text ammoText;
+    [SerializeField]
+    private Text healthText;
+    [SerializeField]
+    private Text armorText;
     private AudioClip weaponSound;
+    public AudioClip[] playerDSound = new AudioClip[3];
+    public AudioClip[] playerHSound = new AudioClip[3];
+    public AudioClip[] shotgunReloadSounds = new AudioClip[2];
+
     [HideInInspector]
-    public Vector3 recoilPosition;
+    public Vector3 weaponPosition;
     [HideInInspector]
-    public Quaternion recoilRotation;
+    public Vector3 recoilPosition;  
+    [HideInInspector]
+    public Vector3 reloadStartPosition;    
+    [HideInInspector]
+    public Vector3 reloadEndPosition;
     public  Transform[] weaponEmitter;
     private MeshRenderer weaponMuzzle;
     [Header("Player can move in air")]
@@ -81,6 +100,14 @@ public class PlayerSystem : MonoBehaviour
     public bool isMoving = false;
     public bool isShooting = false;
     public bool isRecoiling = false;
+    public bool isDrowning = false;
+    public bool isDamaged = false;
+    public bool isHealed = false;
+    private int environmentIndex = 0;
+    private float environmentTime = 1f;
+    private float environmentTimer;
+    private float flashTime = 0.05f;
+    private float flashTimer;
     [Header("Player Sounds")]
     public AudioClip jumpSfx;
     [Header("Player Tilt")]
@@ -102,6 +129,9 @@ public class PlayerSystem : MonoBehaviour
     public Transform[] bulletPools = new Transform[1];
     public GameObject[] bulletPrefabs = new GameObject[1];
     public List<int> emitterW0List = new List<int> { 0, 1, 2, 3, 4, 5, 6 };
+    public Transform[] weaponReloadObj = new Transform[1];
+    public Vector3[] weaponReloadStartPositions = new Vector3[1];
+    public Vector3[] weaponReloadEndPositions = new Vector3[1];
 
     private void Awake()
     {
@@ -120,8 +150,9 @@ public class PlayerSystem : MonoBehaviour
         jumpTimer = antiJumpFactor;
         // set the gravity
         gravity = gravityPull;
-
+        flashTimer = flashTime;
         gunflashTimer = gunflashTime;
+        healthText.text = health.ToString();
         WeaponSetup(WeaponType.ShotGun);
     }
     private void Update()
@@ -131,34 +162,187 @@ public class PlayerSystem : MonoBehaviour
         GunFlash();
         ShootWeapon();
         RecoilWeapon();
+        Environment(environmentIndex);
+        DamageFlash();
+        HealFlash();
+    }
+    private void DamageFlash()
+    {
+        if (!isDamaged)
+            return;
+        FlashTimer(1);
+    }
+    private void HealFlash()
+    {
+        if (!isHealed)
+            return;
+        FlashTimer(0);
+
+    }
+    private void FlashTimer(int spriteIndex)
+    {
+        if (flashUI.sprite != flashSprites[spriteIndex])
+            flashUI.sprite = flashSprites[spriteIndex];
+        flashUI.enabled = true;
+        flashTimer -= Time.deltaTime;
+        flashTimer = Mathf.Clamp(flashTimer, 0.0f, flashTime);
+        if (flashTimer == 0)
+        {
+            flashTimer = flashTime;
+            flashUI.enabled = false;
+           if(isHealed) isHealed = false;
+           else if(isDamaged) isDamaged = false;
+        }
+    }
+    private void Environment(int index)
+    {
+        switch (index)
+        {
+            case 0: return;
+            case 1: 
+                {
+                    EnvironmentDamage(environmentTime, 20);
+                    break; 
+                }
+            case 2:
+                {
+                    EnvironmentDamage(environmentTime, 5);
+                    break;
+                }
+            case 3:
+                {
+                    if (!isDrowning)
+                    {
+                        float speedAbsolute = 1.0f / environmentTimer;
+                        environmentTimer -= Time.deltaTime * speedAbsolute;
+                        environmentTimer = Mathf.Clamp(environmentTimer, 0.0f, environmentTime);
+                        if (environmentTimer == 0)
+                            isDrowning = true;
+                    }
+                    else
+                    {
+                        EnvironmentDamage(1, 2);
+                    }
+                    break;
+                }
+        }
+
+    }
+    private void EnvironmentDamage(float time, int damageAmt)
+    {
+        float speedAbsolute = 1.0f / environmentTimer;
+        environmentTimer -= Time.deltaTime * speedAbsolute;
+        environmentTimer = Mathf.Clamp(environmentTimer, 0.0f, time);
+        if (environmentTimer == 0)
+        {
+            Damage(damageAmt);
+            environmentTimer = time;
+        }
+    }
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.gameObject.CompareTag("Lava"))
+        {
+            environmentIndex = 1;
+            environmentTime = 0.5f;
+            environmentTimer = environmentTime;
+        }
+        else if (other.gameObject.CompareTag("Acid"))
+        {
+            environmentIndex = 2;
+            environmentTime = 2;
+            environmentTimer = environmentTime;
+        }
+        else if (other.gameObject.CompareTag("Water"))
+        {
+            environmentIndex = 3;
+            environmentTime = 30;
+            environmentTimer = environmentTime;
+        }
+        //else if (other.gameObject.CompareTag("Shotgun"))
+        //    environmentIndex = 1;
+        //else if (other.gameObject.CompareTag("ShotgunAmmo"))
+        //    environmentIndex = 1;
+        else if (other.gameObject.CompareTag("Health100"))
+        {
+            AudioSystem.PlayAudioSource(playerHSound[2], 1, 1);
+            Recover(100, true);
+            other.gameObject.SetActive(false);
+        }
+        else if (other.gameObject.CompareTag("Health25"))
+        {
+            if (health < 100)
+            {
+                AudioSystem.PlayAudioSource(playerHSound[1], 1, 1);
+                Recover(25, false);
+                other.gameObject.SetActive(false);
+            }
+        }
+        else if (other.gameObject.CompareTag("Health15"))
+        {
+            if (health < 100)
+            {
+                AudioSystem.PlayAudioSource(playerHSound[0], 1, 1);
+                Recover(15, false);
+                other.gameObject.SetActive(false);
+            }
+        }
+
+    }
+    private void OnTriggerExit(Collider other)
+    {
+        if (other.gameObject.CompareTag("Lava"))
+            environmentIndex = 0;
+        else if (other.gameObject.CompareTag("Acid"))
+            environmentIndex = 0;
+        else if (other.gameObject.CompareTag("Water"))
+        {
+            environmentIndex = 0;
+            isDrowning = false;
+        }
     }
     private void RecoilWeapon()
     {
         if (!isRecoiling)
             return;
-        gunLerpTime += Time.deltaTime;
-        float perc = gunLerpTime / fireRate * 2;
-        if (gunLerpTime >= fireRate * 2)
-            gunLerpTime = fireRate * 2;
-        Vector3 OrgPos = new Vector3(0, -3f, 2.5f);
-        Vector3 lerpPosition = !lerpAhead ? recoilPosition : OrgPos;
-       
-        weapon.transform.localPosition = Vector3.Lerp(weapon.transform.localPosition, lerpPosition, perc);
-        if (weapon.transform.localPosition == recoilPosition && !lerpAhead)
+        Vector3 lerpPosition = !lerpAhead[0] ? recoilPosition : weaponPosition;
+        Vector3 lerpReload = !lerpAhead[1] ? reloadEndPosition : reloadStartPosition;
+        float[] rate = new float[2]
+        { 
+            !lerpAhead[0] ? blastBackRate[0] : returnRate[0], 
+            !lerpAhead[1] ? blastBackRate[1] : returnRate[1] 
+        };
+        // Move the gun back to forward
+        weapon.transform.localPosition = Vector3.MoveTowards(weapon.transform.localPosition, lerpPosition, Time.deltaTime * rate[0]);
+        if (weapon.transform.localPosition == recoilPosition && !lerpAhead[0])
+            lerpAhead[0] = true;
+        else if (weapon.transform.localPosition == weaponPosition && lerpAhead[0] && !lerpFinished[0])
         {
-            gunLerpTime = 0;
-            lerpAhead = true;
+            lerpAhead[0] = false; 
+            lerpFinished[0] = true;
         }
-        else if (weapon.transform.localPosition == OrgPos && lerpAhead)
+        // Move animated Weapon part back and forward
+        weaponReloadObj[0].localPosition = Vector3.MoveTowards(weaponReloadObj[0].localPosition, lerpReload, Time.deltaTime * rate[1]);
+        if (weaponReloadObj[0].localPosition == reloadEndPosition && !lerpAhead[1])
+            lerpAhead[1] = true;
+        else if (weaponReloadObj[0].localPosition == reloadStartPosition && lerpAhead[1] && !lerpFinished[1])
         {
-            if (!isShooting)
-            {
-                isRecoiling = false;
-            }
-            gunLerpTime = 0;
-            lerpAhead = false;
+            AudioSystem.PlayAudioSource(shotgunReloadSounds[reloadCounter], 1, 1);
+            reloadCounter++;
+            lerpAhead[1] = false; 
+            if(reloadCounter > 1)
+                lerpFinished[1] = true;
         }
-
+        if (lerpFinished[0] && lerpFinished[1])
+        {
+            isRecoiling = false;
+            weapon.transform.localPosition = weaponPosition;
+            weaponReloadObj[0].localPosition = reloadStartPosition;
+            for (int l = 0; l < lerpFinished.Length; l++)
+                lerpFinished[l] = false;
+            reloadCounter = 0;
+        }
+     
     }
     private void GunFlash()
     {
@@ -191,26 +375,26 @@ public class PlayerSystem : MonoBehaviour
             // [PLAYER SLIDING] -----------------------------------------------------------------------------
             isSliding = false;
             // when player transform collides with slide angle, sliding = true
-            if (Physics.Raycast(transform.position, -Vector3.up, out hit))
+            if (Physics.Raycast(transform.position, -Vector3.up, out playerhit))
             {
-                if (Vector3.Angle(hit.normal, Vector3.up) > slideAngle)
+                if (Vector3.Angle(playerhit.normal, Vector3.up) > slideAngle)
                     isSliding = true;
-                else if (Vector3.Angle(hit.normal, Vector3.up) <= slideAngle)
+                else if (Vector3.Angle(playerhit.normal, Vector3.up) <= slideAngle)
                     isMoving = true;
             }
             // when player collision contact point collides with slide angle, sliding = true
             else
             {
-                Physics.Raycast(contactPoint + Vector3.up, -Vector3.up, out hit);
-                if (Vector3.Angle(hit.normal, Vector3.up) > slideAngle)
+                Physics.Raycast(contactPoint + Vector3.up, -Vector3.up, out playerhit);
+                if (Vector3.Angle(playerhit.normal, Vector3.up) > slideAngle)
                     isSliding = true;
-                else if (Vector3.Angle(hit.normal, Vector3.up) <= slideAngle)
+                else if (Vector3.Angle(playerhit.normal, Vector3.up) <= slideAngle)
                     isMoving = true;
             }
             // start sliding the player based on angle or tag in direction of the angle
-            if ((isSliding && slideOnAngle) || (isSliding && slideOnTag && hit.collider.tag == "Slide"))
+            if ((isSliding && slideOnAngle) || (isSliding && slideOnTag && playerhit.collider.tag == "Slide"))
             {
-                Vector3 hitNormal = hit.normal;
+                Vector3 hitNormal = playerhit.normal;
                 moveDirection = new Vector3(hitNormal.x, -hitNormal.y, hitNormal.z);
                 Vector3.OrthoNormalize(ref hitNormal, ref moveDirection);
                 moveDirection *= slideSpeed;
@@ -319,8 +503,28 @@ public class PlayerSystem : MonoBehaviour
     // Player Collision ========================
     public void Damage(int amount)
     {
-        // reduce the players health by amount
+        AudioSystem.PlayAudioSource(playerDSound[Random.Range(0, playerDSound.Length)], 1, 1);
+        isDamaged = true;
         health -= amount;
+        health = Mathf.Clamp(health, 0, 200);
+        if(health == 0)
+        {
+            Debug.Log("Player Has Died");
+        }
+        healthText.text = health.ToString();
+    }
+    private void Recover(int amt, bool overhealth)
+    {
+        isHealed = true;
+        health += amt;
+        int limit = overhealth ? 200 : 100;
+        health = Mathf.Clamp(health, 0, limit);
+        if (health == limit)
+        {
+            health = limit;
+            Debug.Log("Player Has Recovered");
+        }
+        healthText.text = health.ToString();
     }
     private void FallingDamageAlert(float fallDistance)
     {
@@ -359,7 +563,6 @@ public class PlayerSystem : MonoBehaviour
         {
             case WeaponType.ShotGun: weaponIndex = 0; break;
         }
-        fireRate = weaponFireRates[weaponIndex];
         for (int w = 0; w < weapons.Length; w++)
         {
             if(w == weaponIndex) weapons[w].SetActive(true);
@@ -373,7 +576,9 @@ public class PlayerSystem : MonoBehaviour
         weaponMuzzle = weaponMuzzles[weaponIndex];
         weaponSound = weaponSounds[weaponIndex];
         recoilPosition = weaponRecoilPositions[weaponIndex];
-        recoilRotation = weaponRecoilRotations[weaponIndex];
+        weaponPosition = weapon.transform.localPosition;
+        reloadStartPosition = weaponReloadStartPositions[weaponIndex];
+        reloadEndPosition = weaponReloadEndPositions[weaponIndex];
         ammo = weaponAmmo[weaponIndex];
         weaponEmitter = weaponSEmitters;
         bulletPrefab = bulletPrefabs[weaponIndex];
@@ -388,21 +593,19 @@ public class PlayerSystem : MonoBehaviour
 
     public void ShootWeapon()
     {
-        if (inputPlayer.GetButton("RT") && Time.time > nextFire)
+        if (inputPlayer.GetButton("RT") && !isRecoiling)
         {
             isRecoiling = true;
             isShooting = true;
             FireWeaponType(wType);
             AudioSystem.PlayAudioSource(weaponSound, 1, 1);
             gunFlash = true;
-            nextFire = Time.time + fireRate;
         }
         else if (inputPlayer.GetButtonUp("RT"))
             isShooting = false;
     }
     private void FireWeaponType(WeaponType type)
     {
-     
         switch (type)
         {
             case WeaponType.ShotGun:
@@ -417,7 +620,7 @@ public class PlayerSystem : MonoBehaviour
                             rnd = emitterW0List[Random.Range(0, emitterW0List.Count)];
                             emitterW0List.Remove(rnd);
                         }
-                        SetupBullet(weaponEmitter[rnd], 400);
+                        SetupBullet(weaponEmitter[rnd], 50000);
                     }
                     emitterW0List.Clear();
                     for (int l = 0; l < 7; l++)
@@ -427,20 +630,18 @@ public class PlayerSystem : MonoBehaviour
                     break;
                 }
         }
-
-
-    
     }
     private void SetupBullet(Transform emitter, float bulletForce)
     {
         GameObject bullet = AccessWeaponBullet();
         BulletSystem bulletSystem = bullet.GetComponent<BulletSystem>();
-        bullet.SetActive(true);
+        Rigidbody rb = bullet.GetComponent<Rigidbody>();
+        rb.velocity = Vector3.zero;
         bullet.transform.position = emitter.position;
         bullet.transform.rotation = emitter.rotation;
+        bullet.SetActive(true);
         bulletSystem.SetupBullet(bulletForce, 5);
-      
-     
+        rb.AddForce(emitter.transform.forward * bulletForce);
     }
     public GameObject AccessWeaponBullet()
     {

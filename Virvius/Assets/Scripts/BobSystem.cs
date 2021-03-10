@@ -74,10 +74,10 @@ public class BobSystem : MonoBehaviour
         Vector3 animVector;
         switch (type)
         {
-            case weaponAnimType.up: x = 0f; y = -2.8f; z = transform.localPosition.z; break;
+            case weaponAnimType.up: x = 0f; y = -2.7f; z = transform.localPosition.z; break;
             case weaponAnimType.down: x = 0f; y = -3.2f; z = transform.localPosition.z; break;
-            case weaponAnimType.left: x = -0.025f; y = -3f; z = transform.localPosition.z; break;
-            case weaponAnimType.right: x = 0.025f; y = -3f; z = transform.localPosition.z; break;
+            case weaponAnimType.left: x = -0.05f; y = -3f; z = transform.localPosition.z; break;
+            case weaponAnimType.right: x = 0.05f; y = -3f; z = transform.localPosition.z; break;
             case weaponAnimType.jump: x = 0f; y = -2.5f; z = transform.localPosition.z; break;
             case weaponAnimType.idle: 
                 {

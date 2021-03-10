@@ -7,17 +7,23 @@ public class BulletSystem : MonoBehaviour
     float bulletForce = 0;
     float bulletTimer = 0;
     bool bulletActive = false;
+    public GameObject spark;
+    public GameObject hole;
+    Transform sparkPool;
+    Transform holePool;
+    RaycastHit hit;
+    Vector3 fwd;
     // Update is called once per frame
+    private void Start()
+    {
+        sparkPool = GameObject.Find("GameSystem/Game/ObjectPool/SparkPool").transform;
+        holePool = GameObject.Find("GameSystem/Game/ObjectPool/HolePool").transform;
+    }
     void Update()
     {
-        Move();
+        fwd = transform.TransformDirection(Vector3.forward);
+        Debug.DrawRay(transform.position, fwd * Mathf.Infinity, Color.red);
         KillTimer();
-    }
-    private void Move()
-    {
-        if (!bulletActive)
-            return;
-        transform.Translate(Vector3.forward * Time.deltaTime * bulletForce);
     }
     public void SetupBullet(float bulletForce, float bulletTime)
     {
@@ -35,6 +41,62 @@ public class BulletSystem : MonoBehaviour
     private void OnCollisionEnter(Collision collision)
     {
         if (collision.gameObject)
-            gameObject.SetActive(false);
+        {
+            RayCast();
+            EnableSpark();
+        }
+    }
+    private void RayCast()
+    {
+        if (Physics.Raycast(transform.position, fwd, out hit, Mathf.Infinity))
+            EnableHole();
+    }
+    private void EnableSpark()
+    {
+        GameObject spark = AccessSpark();
+        ParticleSystem ps = spark.GetComponent<ParticleSystem>();
+        spark.SetActive(true);
+        ps.Play();
+        spark.transform.position = transform.position;
+        gameObject.SetActive(false);
+    }
+    private GameObject AccessSpark()
+    {
+        for (int b = 0; b < sparkPool.childCount; b++)
+        {
+            if (!sparkPool.GetChild(b).gameObject.activeInHierarchy)
+                return sparkPool.GetChild(b).gameObject;
+        }
+        if (GameSystem.expandBulletPool)
+        {
+            GameObject newSpark = Instantiate(spark, sparkPool);
+            return newSpark;
+        }
+        else
+            return null;
+    }
+    private void EnableHole()
+    {
+        GameObject hole = AccessHole();
+        HoleSystem holeSystem = hole.GetComponent<HoleSystem>();
+        holeSystem.SetupHole(5);
+        hole.transform.position = hit.point;
+        hole.transform.rotation = Quaternion.FromToRotation(Vector3.up, hit.normal);
+        hole.SetActive(true);
+    }
+    private GameObject AccessHole()
+    {
+        for (int b = 0; b < holePool.childCount; b++)
+        {
+            if (!holePool.GetChild(b).gameObject.activeInHierarchy)
+                return holePool.GetChild(b).gameObject;
+        }
+        if (GameSystem.expandBulletPool)
+        {
+            GameObject newHole = Instantiate(hole, Vector3.zero, Quaternion.identity, holePool);
+            return newHole;
+        }
+        else
+            return null;
     }
 }

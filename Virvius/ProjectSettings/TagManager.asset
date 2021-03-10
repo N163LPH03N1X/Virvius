@@ -5,6 +5,14 @@ TagManager:
   serializedVersion: 2
   tags:
   - Slide
+  - Lava
+  - Acid
+  - Water
+  - Health25
+  - Health15
+  - Shotgun
+  - ShotgunAmmo
+  - Health100
   layers:
   - Default
   - TransparentFX
