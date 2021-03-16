@@ -20,6 +20,7 @@ public class WeaponSystem : MonoBehaviour
     private float gunflashTime = 0.05f;
     private float gunflashTimer;
     private bool gunFlash = false;
+    private Light gunLight;
     // Single Assignment Values
     private Transform[] weaponEmitter;
     [HideInInspector]
@@ -48,6 +49,7 @@ public class WeaponSystem : MonoBehaviour
     {
         inputSystem = InputSystem.inputSystem;
         playerSystem = PlayerSystem.playerSystem;
+      
         gunflashTimer = gunflashTime;
         WeaponSetup(WeaponType.ShotGun);
     }
@@ -93,6 +95,7 @@ public class WeaponSystem : MonoBehaviour
         weaponEmitter = weaponSEmitters;
         bulletPrefab = bulletPrefabs[weaponIndex];
         bulletPool = bulletPools[weaponIndex];
+        gunLight = weaponMuzzle.transform.GetChild(0).GetComponent<Light>();
         for (int w = 0; w < weaponEquipped.Length; w++)
         {
             if (w == weaponIndex) weaponEquipped[weaponIndex] = true;
@@ -172,6 +175,7 @@ public class WeaponSystem : MonoBehaviour
     {
         if (!gunFlash) return;
         weaponMuzzle.enabled = true;
+        gunLight.enabled = true;
         gunflashTimer -= Time.deltaTime;
         gunflashTimer = Mathf.Clamp(gunflashTimer, 0.0f, 0.05f);
         if (gunflashTimer == 0.0f)
@@ -179,6 +183,7 @@ public class WeaponSystem : MonoBehaviour
             weaponMuzzle.transform.parent.Rotate(0, 0, 30);
             weaponMuzzle.enabled = false;
             gunFlash = false;
+            gunLight.enabled = false;
             gunflashTimer = gunflashTime;
         }
 

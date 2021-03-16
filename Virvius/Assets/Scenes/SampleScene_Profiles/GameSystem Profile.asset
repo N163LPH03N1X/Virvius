@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-7241542916520778884
+--- !u!114 &-3048023040612545175
 MonoBehaviour:
   m_ObjectHideFlags: 3
   m_CorrespondingSourceObject: {fileID: 0}
@@ -52,29 +52,29 @@ MonoBehaviour:
     overrideState: 0
     value: 1
   temperature:
-    overrideState: 1
+    overrideState: 0
     value: 0
   tint:
-    overrideState: 1
+    overrideState: 0
     value: 0
   colorFilter:
-    overrideState: 1
+    overrideState: 0
     value: {r: 1, g: 1, b: 1, a: 1}
   hueShift:
-    overrideState: 1
+    overrideState: 0
     value: 0
   saturation:
-    overrideState: 1
+    overrideState: 0
     value: 0
   brightness:
     overrideState: 0
     value: 0
   postExposure:
-    overrideState: 1
-    value: 1
-  contrast:
-    overrideState: 1
+    overrideState: 0
     value: 0
+  contrast:
+    overrideState: 0
+    value: -41.04
   mixerRedOutRedIn:
     overrideState: 0
     value: 100
@@ -104,13 +104,13 @@ MonoBehaviour:
     value: 100
   lift:
     overrideState: 0
-    value: {x: 1, y: 1, z: 1, w: 0}
+    value: {x: 1, y: 1, z: 1, w: 0.03372681}
   gamma:
     overrideState: 0
-    value: {x: 1, y: 1, z: 1, w: 0}
+    value: {x: 1, y: 1, z: 1, w: 0.2023609}
   gain:
     overrideState: 0
-    value: {x: 1, y: 1, z: 1, w: 0}
+    value: {x: 1, y: 1, z: 1, w: 1}
   masterCurve:
     overrideState: 0
     value:
@@ -1345,7 +1345,7 @@ MonoBehaviour:
   scale:
     overrideState: 1
     value: 1
---- !u!114 &-159995463285738942
+--- !u!114 &-96052046010101943
 MonoBehaviour:
   m_ObjectHideFlags: 3
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1363,28 +1363,28 @@ MonoBehaviour:
     value: 1
   intensity:
     overrideState: 1
-    value: 0.5
+    value: 1
   threshold:
     overrideState: 1
     value: 1
   softKnee:
     overrideState: 1
-    value: 0
+    value: 0.5
   clamp:
     overrideState: 1
     value: 65472
   diffusion:
     overrideState: 1
-    value: 3.72
+    value: 7
   anamorphicRatio:
-    overrideState: 1
-    value: -1
+    overrideState: 0
+    value: 0
   color:
-    overrideState: 1
+    overrideState: 0
     value: {r: 1, g: 1, b: 1, a: 1}
   fastMode:
-    overrideState: 1
-    value: 1
+    overrideState: 0
+    value: 0
   dirtTexture:
     overrideState: 0
     value: {fileID: 0}
@@ -1405,11 +1405,11 @@ MonoBehaviour:
   m_Name: GameSystem Profile
   m_EditorClassIdentifier: 
   settings:
-  - {fileID: -159995463285738942}
+  - {fileID: -96052046010101943}
   - {fileID: 2737115248411478433}
   - {fileID: 6966991154720308986}
   - {fileID: -2624468408238673709}
-  - {fileID: -7241542916520778884}
+  - {fileID: -3048023040612545175}
 --- !u!114 &2737115248411478433
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -1431,13 +1431,13 @@ MonoBehaviour:
     value: 1
   intensity:
     overrideState: 1
-    value: 2
+    value: 1
   color:
     overrideState: 1
-    value: {r: 0, g: 0, b: 0, a: 1}
+    value: {r: 0.23584908, g: 0.23584908, b: 0.23584908, a: 1}
   ambientOnly:
     overrideState: 1
-    value: 1
+    value: 0
   noiseFilterTolerance:
     overrideState: 0
     value: 0
@@ -1481,7 +1481,7 @@ MonoBehaviour:
     defaultState: 1
   intensity:
     overrideState: 1
-    value: 0.25
+    value: 0.2
   fastMode:
     overrideState: 1
     value: 1

@@ -90,7 +90,7 @@ public class BobSystem : MonoBehaviour
         else
         {
             idle = false;
-            float speed = fall ? bobSpeed / 2.5f : bobSpeed + 0.75f;
+            float speed = fall ? bobSpeed / 1.5f : bobSpeed + 0.75f;
             weaponAnimType type = fall ? weaponAnimType.origin : weaponAnimType.jump;
             transform.localPosition = MoveTowards(WeaponAnimation(type), speed);
             if (transform.localPosition == WeaponAnimation(weaponAnimType.jump) && !fall) fall = true;

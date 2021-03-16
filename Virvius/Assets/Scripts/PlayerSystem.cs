@@ -168,11 +168,18 @@ public class PlayerSystem : MonoBehaviour
     }
     public void ResetPlayer()
     {
-        if (inputSystem.inputPlayer.GetButtonDown("A") && isDead)
+        if (inputSystem.inputPlayer.GetButtonDown("RT") && isDead)
         {
             transform.localPosition = playerStartPosition;
             transform.localRotation = playerStartRotation;
-            isDead = false;
+            isDamaged = false;
+            isHealed = false;
+            inputSystem.isFalling = false;
+            inputSystem.isGrounded = true;
+            inputSystem.isJumping = false;
+            inputSystem.isSliding = false;
+            inputSystem.isSwimming = false;
+            inputSystem.moveDirection = Vector3.zero;
             AudioSystem.MusicPlayStop(true);
             Vector3 headLoc = new Vector3(head.localPosition.x, 5, 0);
             Vector3 headRot = Vector3.zero;
@@ -188,6 +195,8 @@ public class PlayerSystem : MonoBehaviour
             environmentSystem.ActiveEnvironmentUI(false);
             ApplyPlayerHeatlhAndArmor();
         }
+        else if (transform.localPosition == playerStartPosition && isDead)
+            isDead = false;
     }
     // Player Collision ===========================================
   
@@ -196,8 +205,6 @@ public class PlayerSystem : MonoBehaviour
         // Player Collisions with Environment
         if (other.gameObject.CompareTag("Lava")) environmentSystem.SetEnvironment(0.5f, 1);
         else if (other.gameObject.CompareTag("Acid")) environmentSystem.SetEnvironment(1f, 2);
-        else if (other.gameObject.CompareTag("Water")) environmentSystem.SetEnvironment(25, 3);
-
         // Player Collisions with Weapons
         //else if (other.gameObject.CompareTag("Shotgun"))
         //    environmentIndex = 1;
@@ -235,7 +242,6 @@ public class PlayerSystem : MonoBehaviour
     {
         if (other.gameObject.CompareTag("Lava")) environmentSystem.SetEnvironment(0, 0);
         else if (other.gameObject.CompareTag("Acid")) environmentSystem.SetEnvironment(0, 0);
-        else if (other.gameObject.CompareTag("Water")) environmentSystem.SetEnvironment(0, 0);
     }
     // Player Weapon ==============================================
   

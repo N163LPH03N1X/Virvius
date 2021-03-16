@@ -22,8 +22,10 @@ public class EnvironmentSystem : MonoBehaviour
     private float environmentTimer;
     private SphereCollider col;
     public AudioClip playerDrSound;
-    private string[] environmentTag = new string[3] { "Lava", "Acid", "Water"};
-private void Awake()
+    [HideInInspector]
+    public  string[] environmentTag = new string[3] { "Lava", "Acid", "Water"};
+    public bool headUnderWater = false;
+    private void Awake()
     {
         environmentSystem = this;
     }
@@ -69,7 +71,7 @@ private void Awake()
                         environmentTimer = Mathf.Clamp(environmentTimer, 0.0f, environmentTime);
                         if (environmentTimer == 0)
                             isDrowning = true;
-                        Debug.Log(environmentTimer);
+                        //Debug.Log(environmentTimer);
                     }
                     else
                     {
@@ -95,6 +97,7 @@ private void Awake()
     }
     public void SetEnvironment(float time, int index)
     {
+
         environmentIndex = index;
         environmentTime = time;
         environmentTimer = environmentTime;
@@ -121,29 +124,51 @@ private void Awake()
     }
     private void OnTriggerEnter(Collider other)
     {
-        if (other.gameObject.CompareTag("Lava")) ActivateEnvironment(1);
-        else if (other.gameObject.CompareTag("Acid")) ActivateEnvironment(2);
-        else if (other.gameObject.CompareTag("Water")) ActivateEnvironment(3);
+        for (int e = 0; e < environmentTag.Length; e++)
+        {
+            if (other.gameObject.CompareTag(environmentTag[e])) 
+            {
+                if (e == 2)
+                    SetEnvironment(25, 3);
+                ActivateEnvironment(e + 1); 
+            }
+        }
     }
     private void OnTriggerExit(Collider other)
     {
-        if (other.gameObject.CompareTag("Lava")) ActivateEnvironment(0);
-        else if (other.gameObject.CompareTag("Acid")) ActivateEnvironment(0);
-        else if (other.gameObject.CompareTag("Water")) ActivateEnvironment(0);
+        for (int e = 0; e < environmentTag.Length; e++)
+        {
+            if (other.gameObject.CompareTag(environmentTag[e])) 
+            {
+               
+                if(e == 2)
+                    SetEnvironment(0, 0);
+                if (headUnderWater)
+                {
+         
+                    headUnderWater = false;
+                }
+            }
+
+        }
     }
     public void ActivateEnvironment(int index)
     {
         if (index > 0)
         {
-            inputSystem.isSwimming = true;
-            inputSystem.moveDirection.y = 0;
+            float vel = 0;
+            inputSystem.moveDirection.y = vel;
+            headUnderWater = true;
             environmentUI.sprite = environmentSprites[index - 1];
         }
-        else
+    }
+    public void ActivateSwimming(bool active)
+    {
+        inputSystem.isSwimming = active;
+        if (active)
         {
-            inputSystem.isLedge = true;
-            inputSystem.isSwimming = false; 
+            float vel = inputSystem.moveDirection.y / 2;
+            inputSystem.moveDirection.y = vel;
         }
-       
     }
 }
